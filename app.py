@@ -62,7 +62,7 @@ def predict():
         #   - > 150 → ชัด
         # (ขึ้นกับ dataset ของคุณ สามารถทดลองปรับได้เอง)
         # --------------------------------------------------------------
-        threshold = 150  
+        threshold = 700  
         prediction = "blurry" if score < threshold else "clear"
 
         # ส่งผลลัพธ์กลับเป็น JSON
