@@ -1,6 +1,6 @@
 # ======================================================================
 #  API ตรวจจับความเบลอ (Blur Detector API)
-#  เวอร์ชันนี้ใช้ threshold ตัดสิน ไม่ได้ใช้โมเดลที่เทรนไว้ (.joblib)
+#  เวอร์ชัน Double Threshold
 # ======================================================================
 
 from flask import Flask, request, jsonify
@@ -56,20 +56,26 @@ def predict():
         score = calculate_laplacian_variance(image_bytes)
 
         # --------------------------------------------------------------
-        # ✅ ปรับ threshold ตรงนี้ได้เลย
-        # ค่า threshold ที่เหมาะสม: 
-        #   - < 100 → เบลอ
-        #   - > 150 → ชัด
-        # (ขึ้นกับ dataset ของคุณ สามารถทดลองปรับได้เอง)
+        # ✅ Double Threshold
+        #   - score < 400  → blurry
+        #   - score > 900  → clear
+        #   - 400–900      → uncertain
         # --------------------------------------------------------------
-        threshold = 700  
-        prediction = "blurry" if score < threshold else "clear"
+        if score < 400:
+            prediction = "blurry"
+        elif score > 900:
+            prediction = "clear"
+        else:
+            prediction = "uncertain"
 
         # ส่งผลลัพธ์กลับเป็น JSON
         return jsonify({
             'prediction': prediction,
             'blur_score': score,
-            'threshold': threshold
+            'thresholds': {
+                'blurry_max': 400,
+                'clear_min': 900
+            }
         })
 
 # ----------------------------------------------------------------------
@@ -77,7 +83,7 @@ def predict():
 # ----------------------------------------------------------------------
 @app.route('/', methods=['GET'])
 def health_check():
-    return "Blur Detector API กำลังทำงาน!"
+    return "Blur Detector API (Double Threshold) กำลังทำงาน!"
 
 # ----------------------------------------------------------------------
 # รัน Flask App (ใช้สำหรับทดสอบ local)
