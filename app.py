@@ -1,6 +1,6 @@
 # ======================================================================
 #  API ตรวจจับความเบลอ (Blur Detector API)
-#  เวอร์ชัน Double Threshold
+#  เวอร์ชัน Single Threshold
 # ======================================================================
 
 from flask import Flask, request, jsonify
@@ -19,17 +19,11 @@ app = Flask(__name__)
 # ยิ่งค่าน้อย → ภาพยิ่งเบลอ
 # ----------------------------------------------------------------------
 def calculate_laplacian_variance(image_bytes):
-    # แปลงไฟล์ภาพจาก bytes เป็น array
     image_np = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
-
     if img is None:
-        return 0  # ถ้าอ่านไฟล์ไม่ได้ ให้คืนค่า 0
-
-    # แปลงภาพเป็น grayscale
+        return 0
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # คำนวณค่า Laplacian Variance
     variance = cv2.Laplacian(gray, cv2.CV_64F).var()
     return variance
 
@@ -39,43 +33,25 @@ def calculate_laplacian_variance(image_bytes):
 # ----------------------------------------------------------------------
 @app.route('/predict', methods=['POST'])
 def predict():
-    # ตรวจสอบว่ามีไฟล์ถูกส่งมาหรือไม่
     if 'file' not in request.files:
         return jsonify({'error': 'ไม่พบไฟล์ใน request'}), 400
 
     file = request.files['file']
-
     if file.filename == '':
         return jsonify({'error': 'ไม่ได้เลือกไฟล์สำหรับอัปโหลด'}), 400
 
     if file:
-        # อ่านไฟล์เป็น bytes
         image_bytes = file.read()
-
-        # คำนวณ blur_score
         score = calculate_laplacian_variance(image_bytes)
 
-        # --------------------------------------------------------------
-        # ✅ Double Threshold
-        #   - score < 400  → blurry
-        #   - score > 900  → clear
-        #   - 400–900      → uncertain
-        # --------------------------------------------------------------
-        if score < 400:
-            prediction = "blurry"
-        elif score > 900:
-            prediction = "clear"
-        else:
-            prediction = "uncertain"
+        # ✅ Threshold (ปรับตาม dataset ที่คุณรันได้)
+        threshold = 400   # ถ้าภาพชัดเยอะเกินไปให้ลองขยับเป็น 500
+        prediction = "blurry" if score < threshold else "clear"
 
-        # ส่งผลลัพธ์กลับเป็น JSON
         return jsonify({
             'prediction': prediction,
             'blur_score': score,
-            'thresholds': {
-                'blurry_max': 400,
-                'clear_min': 900
-            }
+            'threshold': threshold
         })
 
 # ----------------------------------------------------------------------
@@ -83,7 +59,7 @@ def predict():
 # ----------------------------------------------------------------------
 @app.route('/', methods=['GET'])
 def health_check():
-    return "Blur Detector API (Double Threshold) กำลังทำงาน!"
+    return "Blur Detector API (Single Threshold) กำลังทำงาน!"
 
 # ----------------------------------------------------------------------
 # รัน Flask App (ใช้สำหรับทดสอบ local)
